@@ -1,0 +1,66 @@
+:: StoryData
+{
+  "ifid": "F8C9381B-6BF4-4AB3-8541-1C87E90D6935",
+  "format": "SugarCube",
+  "format-version": "2.0.0"
+}
+
+:: Start [nobr] {"position":"200,325"}
+<div>
+  <h2>Comments</h2>
+  /* one type */
+  <!-- another type -->
+  /% a third type %/
+  <h2>text</h2>
+  Lorem ipsum.<br>
+  Testing dubble colon inside of passage :: there.<br>
+  <p>Lorem.</p>
+
+  <h2>Images</h2>
+  <img src="path/to/img">
+  <img @src="_var + 'gghghg'">  
+  /* [img[Title|Image path][Link][Setter]] */
+  [img[Go home|home.png][Home][$done to true]]
+
+  
+  <h2>SugarCube macros and markup</h2>
+  @@#doAction;<<linkreplace "action">>
+    <<set _newItem = new Item>>
+    <<set $player.inventory.push(_newItem)>>
+    <<replace "#doAction">>Lorem.<</replace>>
+    <<replace "#leave">>Lorem.<</replace>>
+  <</linkreplace>>@@. Lorem. 
+
+  <h2>Links/passage navigation</h2>
+  [[leave->End]].
+  <!-- Reverse twee link notation -->
+  [[End<-leave]].
+  <!-- Macro link -->
+  <<link "leave" "End">>
+    <<set $varname = "value">>
+  <</link>>
+  /* [[End]] alternative comments markup */
+</div>
+
+:: Mid [multiple tags]
+/* No metadata block */
+! Heading
+
+* Followed by a 
+* Bulleted list
+* To pass to a wikicode parser somewhere
+<<nobr>>
+    Container macro with no arguments
+<</nobr>>
+
+{{{does anyone ever use inline code blocks?}}}
+{{{
+    Or not inline ones?
+}}}
+----
+@@#I.never.use.these;things@@
+@@background:url("/my_image.jpg");this is legal@@
+<<redo>>
+
+:: End {"position":"350,325"}
+Lorem ?ipsum.

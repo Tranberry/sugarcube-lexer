@@ -1,0 +1,8 @@
+# logfiles
+terminal-log/
+
+# editor files
+.vscode/
+
+# denofiles
+deno.lock
