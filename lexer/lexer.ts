@@ -36,7 +36,7 @@ export function Tokenize(input: string): TokenNode[] {
 
   function isMacroName(char: string): boolean {
     // NOTE: Names must consist of characters from the basic Latin alphabet and
-    // start with a letter, which may be optionally followed by any number of 
+    // start with a letter, which may be optionally followed by any number of
     // letters, numbers, the underscore, or the hyphen.
     return /^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(char);
   }
@@ -60,6 +60,26 @@ export function Tokenize(input: string): TokenNode[] {
     const match = RegEx.exec(input.substring(position));
     if (match) {
       console.log(`Position before calc: ${position}`);
+      return true;
+    }
+    return false;
+  }
+
+  function lookBehind(char: string): boolean {
+    if (position <= 0) return false;
+    if (input[position - 1] === char) {
+      return true;
+    }
+    return false;
+  }
+
+  function regExAfterCurrent(regEx: RegExp, maxDistance: number = 50): boolean {
+    if (isAtEnd()) return false;
+    // Get the substring of the input string starting at the current position
+    // and ending at the current position plus the maximum distance to look
+    // ahead.
+    const content = input.substring(position, position + maxDistance);
+    if (content.match(regEx)) {
       return true;
     }
     return false;
@@ -115,6 +135,28 @@ export function Tokenize(input: string): TokenNode[] {
       nestingLevel--;
       const token = createTokenNode("sc_tag_end", ">>");
       tokens.push(token);
+      position++;
+      continue;
+    }
+
+    // if json block
+    if (match("{") && !match("{{") && !lookBehind("{") && regExAfterCurrent(/\{"[^"]*"\:[\s\S]*\}/, 200)) {
+    // TODO: clean this up, if we find a JSON validator might be worth a try 
+    // if (match("{")) {
+      let value = "";
+      while (!isAtEnd() && current() !== "}") {
+        value += current().trim();
+        position++;
+      }
+
+      if (match("}")) {
+        value += "}";
+        const token = createTokenNode("json_data", value);
+        tokens.push(token);
+        position++;
+        continue;
+      }
+      console.log("TODO: json block");
       position++;
       continue;
     }
