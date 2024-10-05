@@ -21,7 +21,6 @@ export function Tokenize(input: string): TokenNode[] {
   const tokens: TokenNode[] = [];
   let position = 0;
   let nestingLevel = 0;
-  let closingTag = false;
 
   function isAtEnd(): boolean {
     return position >= input.length;
@@ -31,28 +30,20 @@ export function Tokenize(input: string): TokenNode[] {
     return input[position];
   }
 
-  function isNewPassage(position: number): boolean {
-    const RegEx = /^::/;
-    return RegEx.test(current());
-  }
-
   function isWhitespace(char: string): boolean {
     return /\s/.test(char);
   }
 
   function isMacroName(char: string): boolean {
-    // Name, or array of names, of the macro(s) to add. NOTE: Names must consist of characters from the basic Latin alphabet and start with a letter, which may be optionally followed by any number of letters, numbers, the underscore, or the hyphen.
+    // NOTE: Names must consist of characters from the basic Latin alphabet and
+    // start with a letter, which may be optionally followed by any number of 
+    // letters, numbers, the underscore, or the hyphen.
     return /^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(char);
   }
 
   function isInsideMacro(): boolean {
-    // if not odd
+    // TODO: make this more robust
     return nestingLevel % 2 === 1;
-  }
-
-  function lookBack(char: string): boolean {
-    // if previous character
-    return position > 0 && input[position - 1] === char;
   }
 
   function match(char: string): boolean {
@@ -64,22 +55,11 @@ export function Tokenize(input: string): TokenNode[] {
     return false;
   }
 
-  function calcRegExSelection(RegEx: RegExp): number {
-    let selection = 0;
-    const initalPosition = position;
-    while (!isAtEnd() && RegEx.test(input[position])) {
-      position++;
-      selection++;
-    }
-    position = initalPosition;
-    return selection;
-  }
   function patternMatch(RegEx: RegExp): boolean {
     if (isAtEnd()) return false;
     const match = RegEx.exec(input.substring(position));
     if (match) {
       console.log(`Position before calc: ${position}`);
-      // position += match[0].length;
       return true;
     }
     return false;
@@ -87,8 +67,6 @@ export function Tokenize(input: string): TokenNode[] {
 
   function createTokenNode(type: TokenType, value: string): TokenNode {
     const start = position;
-    // TODO: if EOF, set end to start
-    // const end = start + value.length - 1;
     const end = isAtEnd() ? start : position + value.length - 1;
     return {
       token: {
@@ -106,13 +84,6 @@ export function Tokenize(input: string): TokenNode[] {
       continue;
     }
 
-    // if (isNewPassage(position)) {
-    //   const token = createTokenNode("passage_start", "::", position);
-    //   tokens.push(token);
-    //   position++
-    //   continue;
-    // }
-
     if (patternMatch(/^::\s*/)) {
       const token = createTokenNode("passage_start", "::");
       tokens.push(token);
@@ -128,7 +99,7 @@ export function Tokenize(input: string): TokenNode[] {
       continue;
     }
 
-    // if inside a sc_tag
+    // TODO: rework logic
     if (isInsideMacro() && isMacroName(current())) {
       let value = "";
       while (!isAtEnd() && isMacroName(current())) {
