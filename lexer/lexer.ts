@@ -48,8 +48,6 @@ enum TokenKind {
   COMMENT = "comment",
 }
 
-
-
 export class Lexer {
   public atlas?: unknown;
   public content: string;
@@ -103,7 +101,9 @@ export class Lexer {
   }
 
   private trimLeft(): void {
-    while (this.cursor < this.content_len && /\s/.test(this.content[this.cursor])) {
+    while (
+      this.cursor < this.content_len && /\s/.test(this.content[this.cursor])
+    ) {
       this.chopChar(1);
     }
   }
@@ -127,12 +127,10 @@ export class Lexer {
         text: "{",
         text_len: 1,
         position: { col: this.x, row: this.line },
-      }
+      };
       this.previousTokenKind = token.kind;
       return token;
     }
-
-    
 
     if (char === "}") {
       this.chopChar(1);
@@ -159,7 +157,7 @@ export class Lexer {
 
     if (this.startsWith("<<")) {
       this.chopChar(2);
-      const token =  {
+      const token = {
         kind: TokenKind.SC_TAG_START,
         text: "<<",
         text_len: 2,
@@ -176,13 +174,16 @@ export class Lexer {
         text: ">>",
         text_len: 2,
         position: { col: this.x, row: this.line },
-      }
+      };
       return token;
     }
 
     if (this.isSymbolStart(char)) {
       const start = this.cursor;
-      while (this.cursor < this.content_len && this.isSymbolStart(this.content[this.cursor])) {
+      while (
+        this.cursor < this.content_len &&
+        this.isSymbolStart(this.content[this.cursor])
+      ) {
         this.chopChar(1);
       }
       const text = this.content.substring(start, this.cursor);
@@ -191,7 +192,7 @@ export class Lexer {
         text,
         text_len: text.length,
         position: { col: this.x, row: this.line },
-      }
+      };
       // NOTE: maybe make a switch for other 'start' tokens?
       if (this.previousTokenKind == TokenKind.SC_TAG_START) {
         token.kind = TokenKind.SC_TAG;
