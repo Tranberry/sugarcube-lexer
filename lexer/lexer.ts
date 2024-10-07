@@ -1,169 +1,224 @@
-import {
-  General_TokenType,
-  SC_TokenType,
-  Twee_TokenType,
-} from "../tokens/TokenTypes.ts";
-
-type TokenType = General_TokenType | Twee_TokenType | SC_TokenType;
+interface Position {
+  col: number;
+  row: number;
+}
 
 interface Token {
-  type: TokenType;
-  value: string;
+  kind: TokenKind;
+  text: string;
+  text_len: number;
+  position: Position;
 }
 
-interface TokenNode {
-  token: Token;
-  start: number;
-  end: number;
+// export type SC_TokenType =
+//   | "passage_start"
+//   | "passage_name"
+//   | "passage_tag_start"
+//   | "passage_tag_end"
+//   | "passage_tag_name"
+//   | "passage_meta_start"
+//   | "passage_meta_end"
+//   | "passage_meta_data"
+//   | "sc_tag_start"
+//   | "sc_tag_end"
+//   | "sc_markup_start"
+//   | "sc_markup_end"
+//   | "sc_markup_selector"
+//   | "sc_markup_content"
+//   | "sc_tag_name"
+//   | "sc_tag_closing_name"
+//   | "sc_variable"
+//   | "sc_tag_arg";
+
+enum TokenKind {
+  EOF = "end of content",
+  INVALID = "invalid token",
+  SYMBOL = "symbol",
+  PASSAGE = "passage",
+  PASSAGE_NAME = "passage name",
+  PASSAGE_TAG = "passage tag",
+  PASSAGE_META = "passage meta",
+  SC_TAG_START = "SC tag start",
+  SC_TAG_CLOSE = "SC tag close",
+  SC_TAG = "sugar cube tag",
+  SC_MARKUP = "sugar cube markup",
+  SC_VARIABLE = "sugar cube variable",
+  OPEN_CURLY = "open curly",
+  CLOSE_CURLY = "close curly",
+  COMMENT = "comment",
 }
 
-export function Tokenize(input: string): TokenNode[] {
-  const tokens: TokenNode[] = [];
-  let position = 0;
-  let nestingLevel = 0;
 
-  function isAtEnd(): boolean {
-    return position >= input.length;
+
+export class Lexer {
+  public atlas?: unknown;
+  public content: string;
+  public content_len: number;
+  public cursor: number = 0;
+  public line: number = 1;
+  public bol: number = 0;
+  public x: number = 0;
+
+  constructor(content: string) {
+    this.content = content;
+    this.content_len = content.length;
   }
 
-  function current(): string {
-    return input[position];
-  }
-
-  function isWhitespace(char: string): boolean {
-    return /\s/.test(char);
-  }
-
-  function isMacroName(char: string): boolean {
-    // NOTE: Names must consist of characters from the basic Latin alphabet and
-    // start with a letter, which may be optionally followed by any number of
-    // letters, numbers, the underscore, or the hyphen.
-    return /^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(char);
-  }
-
-  function isInsideMacro(): boolean {
-    // TODO: make this more robust
-    return nestingLevel % 2 === 1;
-  }
-
-  function match(char: string): boolean {
-    if (isAtEnd()) return false;
-    if (input.substring(position, position + char.length) === char) {
-      position += char.length - 1;
+  /**
+   * Checks if the current cursor position matches the given prefix string.
+   * @param prefix the string to check against
+   * @returns true if the prefix matches, false if it doesn't
+   */
+  private startsWith(prefix: string): boolean {
+    if (prefix.length === 0) {
       return true;
     }
-    return false;
-  }
-
-  function patternMatch(RegEx: RegExp): boolean {
-    if (isAtEnd()) return false;
-    const match = RegEx.exec(input.substring(position));
-    if (match) {
-      console.log(`Position before calc: ${position}`);
-      return true;
+    if (this.cursor + prefix.length - 1 >= this.content_len) {
+      return false;
     }
-    return false;
-  }
-
-  function lookBehind(char: string): boolean {
-    if (position <= 0) return false;
-    if (input[position - 1] === char) {
-      return true;
+    for (let i = 0; i < prefix.length; i++) {
+      if (prefix[i] !== this.content[this.cursor + i]) {
+        return false;
+      }
     }
-    return false;
+    return true;
   }
 
-  function regExAfterCurrent(regEx: RegExp, maxDistance: number = 50): boolean {
-    if (isAtEnd()) return false;
-    // Get the substring of the input string starting at the current position
-    // and ending at the current position plus the maximum distance to look
-    // ahead.
-    const content = input.substring(position, position + maxDistance);
-    if (content.match(regEx)) {
-      return true;
+  private chopChar(len: number): void {
+    for (let i = 0; i < len; i++) {
+      if (this.cursor >= this.content_len) {
+        throw new Error("Unexpected end of content");
+      }
+      const char = this.content[this.cursor];
+      this.cursor++;
+      if (char === "\n") {
+        this.line++;
+        this.bol = this.cursor;
+        this.x = 0;
+      } else {
+        // NOTE: this needs rethinking
+        this.x += 1;
+      }
     }
-    return false;
   }
 
-  function createTokenNode(type: TokenType, value: string): TokenNode {
-    const start = position;
-    const end = isAtEnd() ? start : position + value.length - 1;
-    return {
-      token: {
-        type,
-        value,
-      },
-      start,
-      end,
+  private trimLeft(): void {
+    while (this.cursor < this.content_len && /\s/.test(this.content[this.cursor])) {
+      this.chopChar(1);
+    }
+  }
+
+  private isSymbolStart(char: string): boolean {
+    return /[a-zA-Z_]/.test(char);
+  }
+
+  private previousTokenKind: TokenKind | null = null;
+
+  private nextToken(): Token | null {
+    this.trimLeft();
+    if (this.cursor >= this.content_len) {
+      return null;
+    }
+    const char = this.content[this.cursor];
+    if (char === "{") {
+      this.chopChar(1);
+      const token = {
+        kind: TokenKind.OPEN_CURLY,
+        text: "{",
+        text_len: 1,
+        position: { col: this.x, row: this.line },
+      }
+      this.previousTokenKind = token.kind;
+      return token;
+    }
+
+    
+
+    if (char === "}") {
+      this.chopChar(1);
+      const token = {
+        kind: TokenKind.CLOSE_CURLY,
+        text: "}",
+        text_len: 1,
+        position: { col: this.x, row: this.line },
+      };
+      this.previousTokenKind = token.kind;
+      return token;
+    }
+    if (this.startsWith("::")) {
+      this.chopChar(2);
+      const token = {
+        kind: TokenKind.PASSAGE,
+        text: "::",
+        text_len: 2,
+        position: { col: this.x, row: this.line },
+      };
+      this.previousTokenKind = token.kind;
+      return token;
+    }
+
+    if (this.startsWith("<<")) {
+      this.chopChar(2);
+      const token =  {
+        kind: TokenKind.SC_TAG_START,
+        text: "<<",
+        text_len: 2,
+        position: { col: this.x, row: this.line },
+      };
+      this.previousTokenKind = token.kind;
+      return token;
+    }
+
+    if (this.startsWith(">>")) {
+      this.chopChar(2);
+      const token = {
+        kind: TokenKind.SC_TAG_CLOSE,
+        text: ">>",
+        text_len: 2,
+        position: { col: this.x, row: this.line },
+      }
+      return token;
+    }
+
+    if (this.isSymbolStart(char)) {
+      const start = this.cursor;
+      while (this.cursor < this.content_len && this.isSymbolStart(this.content[this.cursor])) {
+        this.chopChar(1);
+      }
+      const text = this.content.substring(start, this.cursor);
+      const token = {
+        kind: TokenKind.SYMBOL,
+        text,
+        text_len: text.length,
+        position: { col: this.x, row: this.line },
+      }
+      // NOTE: maybe make a switch for other 'start' tokens?
+      if (this.previousTokenKind == TokenKind.SC_TAG_START) {
+        token.kind = TokenKind.SC_TAG;
+      }
+      this.previousTokenKind = token.kind;
+      return token;
+    }
+    this.chopChar(1);
+    const token = {
+      kind: TokenKind.INVALID,
+      text: char,
+      text_len: 1,
+      position: { col: this.x, row: this.line },
     };
+    this.previousTokenKind = token.kind;
+    return token;
   }
 
-  while (!isAtEnd()) {
-    if (isWhitespace(input[position])) {
-      position++;
-      continue;
-    }
-
-    if (patternMatch(/^::\s*/)) {
-      const token = createTokenNode("passage_start", "::");
-      tokens.push(token);
-      position++;
-      continue;
-    }
-
-    if (match("<<")) {
-      nestingLevel++;
-      const token = createTokenNode("sc_tag_start", "<<");
-      tokens.push(token);
-      position++;
-      continue;
-    }
-
-    // TODO: rework logic
-    if (isInsideMacro() && isMacroName(current())) {
-      let value = "";
-      while (!isAtEnd() && isMacroName(current())) {
-        value += input[position];
-        position++;
+  public tokenize(): Token[] {
+    const tokens: Token[] = [];
+    while (true) {
+      const token = this.nextToken();
+      if (!token) {
+        break;
       }
-      const token = createTokenNode("sc_tag_name", value);
       tokens.push(token);
-      continue;
     }
-
-    if (match(">>")) {
-      nestingLevel--;
-      const token = createTokenNode("sc_tag_end", ">>");
-      tokens.push(token);
-      position++;
-      continue;
-    }
-
-    // if json block
-    if (match("{") && !match("{{") && !lookBehind("{") && regExAfterCurrent(/\{"[^"]*"\:[\s\S]*\}/, 200)) {
-    // TODO: clean this up, if we find a JSON validator might be worth a try 
-    // if (match("{")) {
-      let value = "";
-      while (!isAtEnd() && current() !== "}") {
-        value += current().trim();
-        position++;
-      }
-
-      if (match("}")) {
-        value += "}";
-        const token = createTokenNode("json_data", value);
-        tokens.push(token);
-        position++;
-        continue;
-      }
-      console.log("TODO: json block");
-      position++;
-      continue;
-    }
-
-    position++;
+    return tokens;
   }
-
-  tokens.push(createTokenNode("EOF", ""));
-  return tokens;
 }
