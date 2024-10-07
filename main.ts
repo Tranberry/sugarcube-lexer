@@ -9,7 +9,7 @@ const lexer = new Lexer(input);
 const tokens = lexer.tokenize();
 
 // Deno, write `tokens` to ./terminal-log/output-deno.log
-const outputFile = Deno.writeFile(
+Deno.writeFile(
   "terminal-log/output-deno.log",
   new TextEncoder().encode(JSON.stringify(tokens, null, 2)),
 );

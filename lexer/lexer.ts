@@ -154,7 +154,6 @@ export class Lexer {
       this.previousTokenKind = token.kind;
       return token;
     }
-
     if (this.startsWith("<<")) {
       this.chopChar(2);
       const token = {
