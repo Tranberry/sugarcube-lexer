@@ -1,6 +1,6 @@
 interface Position {
   col: number;
-  row: number;
+  line: number;
 }
 
 interface Token {
@@ -33,15 +33,15 @@ interface Token {
 enum TokenKind {
   EOF = "end of content",
   INVALID = "invalid token",
-  SYMBOL = "symbol",
-  PASSAGE = "passage",
-  PASSAGE_NAME = "name passage",
+  NOT_DONE = "INFO: Check if this should be tokenized",
+  PASSAGE_START = "New passage",
+  PASSAGE_NAME = "Name of passage",
   PASSAGE_TAG_START = "passage tag start",
   PASSAGE_TAG_END = "passage tag end",
-  PASSAGE_TAG = "passage tag",
+  PASSAGE_TAG = "passage tag name",
   PASSAGE_META_START = "passage meta start",
   PASSAGE_META_END = "passage meta end",
-  PASSAGE_META = "passage meta",
+  PASSAGE_META = "passage meta data",
   SC_TAG_START = "SC tag start",
   SC_TAG_CLOSE = "SC tag close",
   SC_TAG = "sugar cube tag",
@@ -131,7 +131,7 @@ export class Lexer {
         kind: TokenKind.OPEN_CURLY,
         text: "{",
         text_len: 1,
-        position: { col: this.x, row: this.line },
+        position: { col: this.x, line: this.line },
       };
       this.previousTokenKind = token.kind;
       return token;
@@ -154,7 +154,7 @@ export class Lexer {
           kind: TokenKind.JSON_DATA,
           text: jsonData,
           text_len: jsonData.length,
-          position: { col: this.x, row: this.line },
+          position: { col: this.x, line: this.line },
         }
         return token;
       } else {
@@ -166,7 +166,7 @@ export class Lexer {
             kind: TokenKind.CLOSE_CURLY,
             text: "}",
             text_len: 1,
-            position: { col: this.x, row: this.line },
+            position: { col: this.x, line: this.line },
           };
           this.previousTokenKind = token.kind;
           return token;
@@ -181,7 +181,7 @@ export class Lexer {
         kind: TokenKind.CLOSE_CURLY,
         text: "}",
         text_len: 1,
-        position: { col: this.x, row: this.line },
+        position: { col: this.x, line: this.line },
       };
       this.previousTokenKind = token.kind;
       return token;
@@ -191,17 +191,17 @@ export class Lexer {
     if (this.startsWith("::") && this.x === 0) {     
       this.incrementCursor(2);
       const token = {
-        kind: TokenKind.PASSAGE,
+        kind: TokenKind.PASSAGE_START,
         text: "::",
         text_len: 2,
-        position: { col: this.x, row: this.line },
+        position: { col: this.x, line: this.line },
       };
       this.previousTokenKind = token.kind;
       return token;
     }
 
     // possible Passage name
-    if (this.previousTokenKind === TokenKind.PASSAGE) {
+    if (this.previousTokenKind === TokenKind.PASSAGE_START) {
       if (this.isSymbolStart(char)) {
         const start = this.cursor;
         while (
@@ -219,7 +219,7 @@ export class Lexer {
           kind: TokenKind.PASSAGE_NAME,
           text: passageName,
           text_len: passageName.length,
-          position: { col: this.x, row: this.line },
+          position: { col: this.x, line: this.line },
         }
         this.previousTokenKind = token.kind;        
         return token;
@@ -234,7 +234,7 @@ export class Lexer {
           kind: TokenKind.PASSAGE_TAG_START,
           text: "[",
           text_len: 1,
-          position: { col: this.x, row: this.line },
+          position: { col: this.x, line: this.line },
         };
         this.previousTokenKind = token.kind;
         return token;
@@ -245,16 +245,15 @@ export class Lexer {
           kind: TokenKind.PASSAGE_META_START,
           text: "{",
           text_len: 1,
-          position: { col: this.x, row: this.line },
+          position: { col: this.x, line: this.line },
         };
         this.previousTokenKind = token.kind;
         return token;
       }
     }
 
-    // TODO: add tag content [tag1 tag2]
+    // add tag content [tag1 tag2]
     if (this.previousTokenKind === TokenKind.PASSAGE_TAG_START) {
-      console.log("again?");
       // for each tag return a token, tags are space delimited
       return this.tagToken();
     }
@@ -268,7 +267,7 @@ export class Lexer {
           kind: TokenKind.PASSAGE_TAG_END,
           text: "]",
           text_len: 1,
-          position: { col: this.x, row: this.line },
+          position: { col: this.x, line: this.line },
         } 
         this.previousTokenKind = token.kind;
         return token;
@@ -279,14 +278,36 @@ export class Lexer {
 
     // comments
     if (this.startsWith("/*") || this.startsWith("/%") || this.startsWith("<!--")) {
-      const length = this.startsWith("<!--") ? 4 : 2;
-      this.incrementCursor(length);
+      let commentType: string | undefined;
+      let endLen = 0;
+
+      if (this.startsWith("/*")) {
+        commentType = "*/";
+        endLen = 2
+      } else if (this.startsWith("/%")) {
+        commentType = "%/";
+        endLen = 2
+      } else if (this.startsWith("<!--")) {
+        commentType = "-->";
+        endLen = 3
+      }
+
+      if (commentType === undefined) {
+        throw new Error("How did we end up here, should be impossible");
+      }
+
+      const start = this.cursor;
+      while (!this.startsWith(commentType)) {
+        this.incrementCursor(1);
+      }
+
+      this.incrementCursor(endLen);
 
       const token = {
         kind: TokenKind.COMMENT,
-        text: this.content.substring(this.cursor - length, this.cursor),
-        text_len: length,
-        position: { col: this.x, row: this.line },
+        text: this.content.substring(start, this.cursor),
+        text_len: this.cursor - start,
+        position: { col: this.x, line: this.line },
       }
 
       this.previousTokenKind = token.kind;
@@ -300,7 +321,7 @@ export class Lexer {
         kind: TokenKind.SC_TAG_START,
         text: "<<",
         text_len: 2,
-        position: { col: this.x, row: this.line },
+        position: { col: this.x, line: this.line },
       };
       this.previousTokenKind = token.kind;
       return token;
@@ -313,13 +334,13 @@ export class Lexer {
         kind: TokenKind.SC_TAG_CLOSE,
         text: ">>",
         text_len: 2,
-        position: { col: this.x, row: this.line },
+        position: { col: this.x, line: this.line },
       };
       return token;
     }
 
     // probably a symbol, as in a tag ('link') or other named content
-    if (this.isSymbolStart(char)) {
+    if (this.isSymbolStart(char)) {      
       const start = this.cursor;
       while (
         this.cursor < this.content_len &&
@@ -329,11 +350,13 @@ export class Lexer {
       }
       const text = this.content.substring(start, this.cursor);
       const token = {
-        kind: TokenKind.SYMBOL,
+        kind: TokenKind.NOT_DONE,
         text,
         text_len: text.length,
-        position: { col: this.x, row: this.line },
+        position: { col: this.x, line: this.line },
       };
+
+      // possible SC tag
       if (this.previousTokenKind == TokenKind.SC_TAG_START) {
         token.kind = TokenKind.SC_TAG;
       }
@@ -343,14 +366,31 @@ export class Lexer {
 
     // NOTE: just continue for now
     this.incrementCursor(1);
-    const token = {
+    // const token = {
+    //   kind: TokenKind.INVALID,
+    //   text: char,
+    //   text_len: 1,
+    //   position: { col: this.x, line: this.line },
+    // };
+    // this.previousTokenKind = token.kind;
+    // if end of content
+    if (this.cursor === this.content_len) {
+      const eof_token: Token = {
+        kind: TokenKind.EOF,
+        text: "",
+        text_len: 0,
+        position: { col: this.x, line: this.line },
+      }
+      return eof_token;
+    }
+    // unexpected end of content
+    const invalid: Token = {
       kind: TokenKind.INVALID,
-      text: char,
-      text_len: 1,
-      position: { col: this.x, row: this.line },
-    };
-    this.previousTokenKind = token.kind;
-    return token;
+      text: this.cursor === this.content_len ? "" : this.content[this.cursor],
+      text_len: 0,
+      position: { col: this.x, line: this.line },
+    }
+    return invalid;
   }
 
   private tagToken() {
@@ -365,7 +405,7 @@ export class Lexer {
       kind: TokenKind.PASSAGE_TAG,
       text: tag,
       text_len: tag.length,
-      position: { col: this.x, row: this.line },
+      position: { col: this.x, line: this.line },
     };
     this.previousTokenKind = token.kind;
     return token;
