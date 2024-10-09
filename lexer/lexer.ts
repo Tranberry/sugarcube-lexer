@@ -5,7 +5,7 @@ interface Position {
 
 interface Token {
   kind: TokenKind;
-  text: string;
+  value: string;
   text_len: number;
   position: Position;
 }
@@ -129,7 +129,7 @@ export class Lexer {
       this.incrementCursor(1);
       const token = {
         kind: TokenKind.OPEN_CURLY,
-        text: "{",
+        value: "{",
         text_len: 1,
         position: { col: this.x, line: this.line },
       };
@@ -152,7 +152,7 @@ export class Lexer {
         const jsonData = this.content.substring(start, this.cursor);
         const token = {
           kind: TokenKind.JSON_DATA,
-          text: jsonData,
+          value: jsonData,
           text_len: jsonData.length,
           position: { col: this.x, line: this.line },
         }
@@ -164,7 +164,7 @@ export class Lexer {
           this.incrementCursor(1);
           const token = {
             kind: TokenKind.CLOSE_CURLY,
-            text: "}",
+            value: "}",
             text_len: 1,
             position: { col: this.x, line: this.line },
           };
@@ -179,7 +179,7 @@ export class Lexer {
       this.incrementCursor(1);
       const token = {
         kind: TokenKind.CLOSE_CURLY,
-        text: "}",
+        value: "}",
         text_len: 1,
         position: { col: this.x, line: this.line },
       };
@@ -192,7 +192,7 @@ export class Lexer {
       this.incrementCursor(2);
       const token = {
         kind: TokenKind.PASSAGE_START,
-        text: "::",
+        value: "::",
         text_len: 2,
         position: { col: this.x, line: this.line },
       };
@@ -217,7 +217,7 @@ export class Lexer {
         const passageName = this.content.substring(start, this.cursor);
         const token = {
           kind: TokenKind.PASSAGE_NAME,
-          text: passageName,
+          value: passageName,
           text_len: passageName.length,
           position: { col: this.x, line: this.line },
         }
@@ -232,7 +232,7 @@ export class Lexer {
         this.incrementCursor(1);
         const token = {
           kind: TokenKind.PASSAGE_TAG_START,
-          text: "[",
+          value: "[",
           text_len: 1,
           position: { col: this.x, line: this.line },
         };
@@ -243,7 +243,7 @@ export class Lexer {
         this.incrementCursor(1);
         const token = {
           kind: TokenKind.PASSAGE_META_START,
-          text: "{",
+          value: "{",
           text_len: 1,
           position: { col: this.x, line: this.line },
         };
@@ -265,7 +265,7 @@ export class Lexer {
         this.incrementCursor(1);
         const token = {
           kind: TokenKind.PASSAGE_TAG_END,
-          text: "]",
+          value: "]",
           text_len: 1,
           position: { col: this.x, line: this.line },
         } 
@@ -305,7 +305,7 @@ export class Lexer {
 
       const token = {
         kind: TokenKind.COMMENT,
-        text: this.content.substring(start, this.cursor),
+        value: this.content.substring(start, this.cursor),
         text_len: this.cursor - start,
         position: { col: this.x, line: this.line },
       }
@@ -319,7 +319,7 @@ export class Lexer {
       this.incrementCursor(2);
       const token = {
         kind: TokenKind.SC_TAG_START,
-        text: "<<",
+        value: "<<",
         text_len: 2,
         position: { col: this.x, line: this.line },
       };
@@ -332,7 +332,7 @@ export class Lexer {
       this.incrementCursor(2);
       const token = {
         kind: TokenKind.SC_TAG_CLOSE,
-        text: ">>",
+        value: ">>",
         text_len: 2,
         position: { col: this.x, line: this.line },
       };
@@ -348,11 +348,11 @@ export class Lexer {
       ) {
         this.incrementCursor(1);
       }
-      const text = this.content.substring(start, this.cursor);
+      const content = this.content.substring(start, this.cursor);
       const token = {
         kind: TokenKind.NOT_DONE,
-        text,
-        text_len: text.length,
+        value: content,
+        text_len: content.length,
         position: { col: this.x, line: this.line },
       };
 
@@ -368,7 +368,7 @@ export class Lexer {
     this.incrementCursor(1);
     // const token = {
     //   kind: TokenKind.INVALID,
-    //   text: char,
+    //   value: char,
     //   text_len: 1,
     //   position: { col: this.x, line: this.line },
     // };
@@ -377,7 +377,7 @@ export class Lexer {
     if (this.cursor === this.content_len) {
       const eof_token: Token = {
         kind: TokenKind.EOF,
-        text: "",
+        value: "",
         text_len: 0,
         position: { col: this.x, line: this.line },
       }
@@ -386,7 +386,7 @@ export class Lexer {
     // unexpected end of content
     const invalid: Token = {
       kind: TokenKind.INVALID,
-      text: this.cursor === this.content_len ? "" : this.content[this.cursor],
+      value: this.cursor === this.content_len ? "" : this.content[this.cursor],
       text_len: 0,
       position: { col: this.x, line: this.line },
     }
@@ -403,7 +403,7 @@ export class Lexer {
     const tag = this.content.substring(start, this.cursor);
     const token = {
       kind: TokenKind.PASSAGE_TAG,
-      text: tag,
+      value: tag,
       text_len: tag.length,
       position: { col: this.x, line: this.line },
     };
