@@ -30,7 +30,7 @@ interface Token {
 //   | "sc_variable"
 //   | "sc_tag_arg";
 
-enum TokenKind {
+export enum TokenKind {
   EOF = "end of content",
   INVALID = "invalid token",
   NOT_DONE = "INFO: Check if this should be tokenized",

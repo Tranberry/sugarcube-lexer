@@ -1,34 +1,18 @@
-// import { assertEquals } from "@std/assert";
-// import { Tokenize } from "./lexer/lexer.ts";
-// import {
-//   General_TokenType,
-//   SC_TokenType,
-//   Twee_TokenType,
-// } from "./tokens/TokenTypes.ts";
+import { assertEquals } from "@std/assert";
+import { Lexer, TokenKind } from "./lexer/lexer.ts";
 
-// type Tokens = General_TokenType | SC_TokenType | Twee_TokenType;
+// Test: New passage
+Deno.test("New Passage", async () => {
+  const input = ":: StoryData";
+  const lexer = new Lexer(input);
+  const tokens = lexer.tokenize();
+  assertEquals(tokens[0].kind, TokenKind.PASSAGE_START, "passage start");
+})
 
-// Deno.test(function tokenizeTest() {
-//   const input = `:: StoryData`;
-//   const tokens = Tokenize(input);
-//   const END = {
-//     token: { type: "EOF", value: "" },
-//     start: input.length,
-//     end: input.length,
-//   };
-
-//   assertEquals(
-//     tokens,
-//     [
-//       {
-//         token: {
-//           type: "passage_start",
-//           value: "::",
-//         },
-//         start: 0,
-//         end: 1,
-//       },
-//       END,
-//     ],
-//   );
-// });
+// Test inline SC attribute
+Deno.test("Inline SC", async () => {
+  const input = '<img @src="_imageSrc">';
+  const lexer = new Lexer(input);
+  const tokens = lexer.tokenize();
+  assertEquals(tokens[2].kind, TokenKind.SC_ATT_EVAL, "sc tag start");
+})
