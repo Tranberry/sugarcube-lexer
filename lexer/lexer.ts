@@ -47,10 +47,13 @@ enum TokenKind {
   SC_TAG = "sugar cube tag",
   SC_MARKUP = "sugar cube markup",
   SC_VARIABLE = "sugar cube variable",
+  SC_ATT_EVAL = "sugar cube attribute directive",
   JSON_DATA = "JSON data",
   OPEN_CURLY = "open curly",
   CLOSE_CURLY = "close curly",
   COMMENT = "comment",
+  HTML_TAG_START = "HTML tag start",
+  HTML_TAG_CLOSE = "HTML tag close",
 }
 
 export class Lexer {
@@ -111,10 +114,11 @@ export class Lexer {
 
   private isSymbolStart(char: string): boolean {
     // NOTE: should this be expanded for SC macro reasons
-    return /[a-zA-Z_]/.test(char);
+    return /[a-zA-Z0-9_]/.test(char);
   }
 
   private previousTokenKind: TokenKind | null = null;
+  private insideTag: boolean = false;
   private isPassageLine: boolean = false;
 
   private nextToken(): Token | null {
@@ -126,6 +130,7 @@ export class Lexer {
 
     // possible JSON block start
     if (char === "{") {
+      this.insideTag = true;
       this.incrementCursor(1);
       const token = {
         kind: TokenKind.OPEN_CURLY,
@@ -160,7 +165,8 @@ export class Lexer {
       } else {
         // console.log(`Char: "${char}" Line: ${this.line.toString().padStart(3, " ")} Column: ${this.x.toString().padStart(3, " ")}`);
         // possible JSON block end
-        if (char === "}") {
+        if (char === "}") {         
+          this.insideTag = false;
           this.incrementCursor(1);
           const token = {
             kind: TokenKind.CLOSE_CURLY,
@@ -176,6 +182,7 @@ export class Lexer {
 
     // possible JSON block end
     if (char === "}") {
+      this.insideTag = false;
       this.incrementCursor(1);
       const token = {
         kind: TokenKind.CLOSE_CURLY,
@@ -229,6 +236,7 @@ export class Lexer {
     // possible Passage tag or Passage meta (node position)
     if (this.previousTokenKind === TokenKind.PASSAGE_NAME) {     
       if (char === "[") {
+        this.insideTag = true;
         this.incrementCursor(1);
         const token = {
           kind: TokenKind.PASSAGE_TAG_START,
@@ -240,6 +248,7 @@ export class Lexer {
         return token;
       }
       if (char === "{") {
+        this.insideTag = true;
         this.incrementCursor(1);
         const token = {
           kind: TokenKind.PASSAGE_META_START,
@@ -262,6 +271,7 @@ export class Lexer {
     // possible Passage tag end
     if (this.previousTokenKind === TokenKind.PASSAGE_TAG) {
       if (char === "]") {
+        this.insideTag = false;
         this.incrementCursor(1);
         const token = {
           kind: TokenKind.PASSAGE_TAG_END,
@@ -278,6 +288,7 @@ export class Lexer {
 
     // comments
     if (this.startsWith("/*") || this.startsWith("/%") || this.startsWith("<!--")) {
+      // NOTE: insideTag?
       let commentType: string | undefined;
       let endLen = 0;
 
@@ -316,6 +327,7 @@ export class Lexer {
 
     // probable SC macro/widget start
     if (this.startsWith("<<")) {
+      this.insideTag = true;
       this.incrementCursor(2);
       const token = {
         kind: TokenKind.SC_TAG_START,
@@ -329,6 +341,7 @@ export class Lexer {
 
     // probable SC macro/widget end
     if (this.startsWith(">>")) {
+      this.insideTag = false;
       this.incrementCursor(2);
       const token = {
         kind: TokenKind.SC_TAG_CLOSE,
@@ -339,8 +352,52 @@ export class Lexer {
       return token;
     }
 
+    if (this.startsWith("<")) {
+      this.insideTag = true;
+      this.incrementCursor(1);
+      const token = {
+        kind: TokenKind.HTML_TAG_START,
+        value: "<",
+        text_len: 1,
+        position: { col: this.x, line: this.line },
+      };
+      this.previousTokenKind = token.kind;
+      return token;
+    }
+
+    if (this.startsWith(">")) {
+      this.insideTag = false;
+      this.incrementCursor(1);
+      const token = {
+        kind: TokenKind.HTML_TAG_CLOSE,
+        value: ">",
+        text_len: 1,
+        position: { col: this.x, line: this.line },
+      };
+      return token;
+    }
+
+    // **********************************************
+    // **********************************************
+    // <img @src="_var + 'gghghg'">
+    if (this.insideTag) {
+      // this.DEBUG_LOG(char);
+
+      if (char === "@") {
+        this.incrementCursor(1);
+        const token = {
+          kind: TokenKind.SC_ATT_EVAL,
+          value: "@",
+          text_len: 1,
+          position: { col: this.x, line: this.line },
+        };
+        this.previousTokenKind = token.kind;
+        return token;
+      }
+    }
+
     // probably a symbol, as in a tag ('link') or other named content
-    if (this.isSymbolStart(char)) {      
+    if (this.isSymbolStart(char)) {            
       const start = this.cursor;
       while (
         this.cursor < this.content_len &&
@@ -364,6 +421,9 @@ export class Lexer {
       return token;
     }
 
+
+
+    // ///////////////////////////////////////////////
     // NOTE: just continue for now
     this.incrementCursor(1);
     // const token = {
@@ -391,6 +451,19 @@ export class Lexer {
       position: { col: this.x, line: this.line },
     }
     return invalid;
+  }
+
+  private DEBUG_LOG(identification: string) {
+    console.log(
+      "ID:",
+      identification,
+      "Previous-Token:",
+      `"${this.previousTokenKind}"`,
+      "Character:",
+      this.content[this.cursor],
+      "Line:",
+      this.line
+    );
   }
 
   private tagToken() {
