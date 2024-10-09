@@ -86,7 +86,6 @@ export class Lexer {
     return true;
   }
 
-
   private incrementCursor(len: number): void {
     for (let i = 0; i < len; i++) {
       if (this.cursor >= this.content_len) {
@@ -145,7 +144,7 @@ export class Lexer {
     // possible JSON data block
     if (this.previousTokenKind === TokenKind.OPEN_CURLY) {
       // NOTE: this is naive
-      if (char === '"') {     
+      if (char === '"') {
         const start = this.cursor;
         while (
           this.cursor < this.content_len &&
@@ -160,12 +159,12 @@ export class Lexer {
           value: jsonData,
           text_len: jsonData.length,
           position: { col: this.x, line: this.line },
-        }
+        };
         return token;
       } else {
         // console.log(`Char: "${char}" Line: ${this.line.toString().padStart(3, " ")} Column: ${this.x.toString().padStart(3, " ")}`);
         // possible JSON block end
-        if (char === "}") {         
+        if (char === "}") {
           this.insideTag = false;
           this.incrementCursor(1);
           const token = {
@@ -195,7 +194,7 @@ export class Lexer {
     }
 
     // probable Passage start
-    if (this.startsWith("::") && this.x === 0) {     
+    if (this.startsWith("::") && this.x === 0) {
       this.incrementCursor(2);
       const token = {
         kind: TokenKind.PASSAGE_START,
@@ -227,14 +226,14 @@ export class Lexer {
           value: passageName,
           text_len: passageName.length,
           position: { col: this.x, line: this.line },
-        }
-        this.previousTokenKind = token.kind;        
+        };
+        this.previousTokenKind = token.kind;
         return token;
       }
     }
 
     // possible Passage tag or Passage meta (node position)
-    if (this.previousTokenKind === TokenKind.PASSAGE_NAME) {     
+    if (this.previousTokenKind === TokenKind.PASSAGE_NAME) {
       if (char === "[") {
         this.insideTag = true;
         this.incrementCursor(1);
@@ -278,29 +277,31 @@ export class Lexer {
           value: "]",
           text_len: 1,
           position: { col: this.x, line: this.line },
-        } 
+        };
         this.previousTokenKind = token.kind;
         return token;
       } else {
         return this.tagToken();
-      };
+      }
     }
 
     // comments
-    if (this.startsWith("/*") || this.startsWith("/%") || this.startsWith("<!--")) {
+    if (
+      this.startsWith("/*") || this.startsWith("/%") || this.startsWith("<!--")
+    ) {
       // NOTE: insideTag?
       let commentType: string | undefined;
       let endLen = 0;
 
       if (this.startsWith("/*")) {
         commentType = "*/";
-        endLen = 2
+        endLen = 2;
       } else if (this.startsWith("/%")) {
         commentType = "%/";
-        endLen = 2
+        endLen = 2;
       } else if (this.startsWith("<!--")) {
         commentType = "-->";
-        endLen = 3
+        endLen = 3;
       }
 
       if (commentType === undefined) {
@@ -319,7 +320,7 @@ export class Lexer {
         value: this.content.substring(start, this.cursor),
         text_len: this.cursor - start,
         position: { col: this.x, line: this.line },
-      }
+      };
 
       this.previousTokenKind = token.kind;
       return token;
@@ -397,7 +398,7 @@ export class Lexer {
     }
 
     // probably a symbol, as in a tag ('link') or other named content
-    if (this.isSymbolStart(char)) {            
+    if (this.isSymbolStart(char)) {
       const start = this.cursor;
       while (
         this.cursor < this.content_len &&
@@ -421,8 +422,6 @@ export class Lexer {
       return token;
     }
 
-
-
     // ///////////////////////////////////////////////
     // NOTE: just continue for now
     this.incrementCursor(1);
@@ -440,7 +439,7 @@ export class Lexer {
         value: "",
         text_len: 0,
         position: { col: this.x, line: this.line },
-      }
+      };
       return eof_token;
     }
     // unexpected end of content
@@ -449,7 +448,7 @@ export class Lexer {
       value: this.cursor === this.content_len ? "" : this.content[this.cursor],
       text_len: 0,
       position: { col: this.x, line: this.line },
-    }
+    };
     return invalid;
   }
 
@@ -462,15 +461,17 @@ export class Lexer {
       "Character:",
       this.content[this.cursor],
       "Line:",
-      this.line
+      this.line,
     );
   }
 
   private tagToken() {
     const start = this.cursor;
-    while (this.cursor < this.content_len &&
+    while (
+      this.cursor < this.content_len &&
       this.content[this.cursor] !== "]" &&
-      this.content[this.cursor] !== " ") {
+      this.content[this.cursor] !== " "
+    ) {
       this.incrementCursor(1);
     }
     const tag = this.content.substring(start, this.cursor);
